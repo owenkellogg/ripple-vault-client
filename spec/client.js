@@ -15,14 +15,14 @@ describe('Ripple Vault Client', function(){
     it('should be initialized with a domain', function() {
       
       var vaultClient = new VaultClient({ domain: 'zenlabs.co' }); 
-      assert(vaultClient.domain == 'zenlabs.co');
+      assert.strictEqual(vaultClient.domain, 'zenlabs.co');
 
     });
 
     it('should default to ripple.com without a domain', function() {
 
       var vaultClient = new VaultClient(); 
-      assert(vaultClient.domain == 'ripple.com');
+      assert.strictEqual(vaultClient.domain, 'ripple.com');
 
     });
 
@@ -34,8 +34,8 @@ describe('Ripple Vault Client', function(){
 
       vaultClient.login('username', 'password', function(err, resp) {
 
-        assert(resp.id);
-        assert(resp.cryptKey);
+        assert('id' in resp);
+        assert('cryptKey' in resp);
         assert(!err);
         fn();
 
@@ -51,7 +51,7 @@ describe('Ripple Vault Client', function(){
 
       vaultClient.relogin('id', 'cryptKey', function(err, resp) {
 
-        assert(resp.blob);
+        assert('blob' in resp);
         assert(!err);
         fn();
 
@@ -68,8 +68,8 @@ describe('Ripple Vault Client', function(){
       
       vaultClient.unlock('username', 'password', 'encryptSecret', function(err, resp) {
 
-        assert(resp.wallet); 
-        assert(resp.wallet.secret); 
+        assert('wallet' in resp); 
+        assert('secret' in resp.wallet); 
         assert(!err);
         fn();
 
@@ -85,8 +85,9 @@ describe('Ripple Vault Client', function(){
 
       vaultClient.loginAndUnlock('username', 'password', function(err, resp) {
 
-        assert(resp.wallet.address); 
-        assert(resp.wallet.secret); 
+        assert('wallet' in resp);
+        assert('address' in resp.wallet);
+        assert('secret' in resp.wallet); 
         assert(!err);
         fn();
 
