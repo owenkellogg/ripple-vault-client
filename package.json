@@ -2,7 +2,7 @@
   "name": "ripple-vault-client",
   "version": "1.0.1",
   "description": "A javascript / http client to interact with Ripple Vault servers.",
-  "main": "index.js",
+  "main": "src",
   "scripts": {
     "test": "mocha -R spec spec/"
   },
