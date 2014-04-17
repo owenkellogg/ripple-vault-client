@@ -5,23 +5,23 @@ var VaultClient = require(__dirname + '/../');
 describe('Ripple Vault Client', function(){
 
   beforeEach(function() {
-    
-    vaultClient = new VaultClient(); 
+
+    vaultClient = new VaultClient();
 
   });
 
   describe('initialization', function() {
 
     it('should be initialized with a domain', function() {
-      
-      var vaultClient = new VaultClient({ domain: 'zenlabs.co' }); 
+
+      var vaultClient = new VaultClient({ domain: 'zenlabs.co' });
       assert.strictEqual(vaultClient.domain, 'zenlabs.co');
 
     });
 
     it('should default to ripple.com without a domain', function() {
 
-      var vaultClient = new VaultClient(); 
+      var vaultClient = new VaultClient();
       assert.strictEqual(vaultClient.domain, 'ripple.com');
 
     });
@@ -61,15 +61,15 @@ describe('Ripple Vault Client', function(){
     });
 
   });
-  
+
   describe('#unlock', function() {
 
     it('should access the wallet secret using encryption secret, username and password', function(fn) {
-      
+
       vaultClient.unlock('username', 'password', 'encryptSecret', function(err, resp) {
 
-        assert('wallet' in resp); 
-        assert('secret' in resp.wallet); 
+        assert('wallet' in resp);
+        assert('secret' in resp.wallet);
         assert(!err);
         fn();
 
@@ -80,14 +80,14 @@ describe('Ripple Vault Client', function(){
   });
 
   describe('doing it all in one step', function() {
- 
+
     it('should get the account secret and address given name and password', function(fn) {
 
       vaultClient.loginAndUnlock('username', 'password', function(err, resp) {
 
         assert('wallet' in resp);
         assert('address' in resp.wallet);
-        assert('secret' in resp.wallet); 
+        assert('secret' in resp.wallet);
         assert(!err);
         fn();
 
