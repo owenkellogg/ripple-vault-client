@@ -1,4 +1,3 @@
-
 function VaultClient(opts) {
   if (!opts) { opts = {}; };
   this.domain = opts.domain || 'ripple.com';
@@ -43,4 +42,3 @@ VaultClient.prototype.loginAndUnlock = function(username, password, fn) {
 };
 
 module.exports = VaultClient;
-
