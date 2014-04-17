@@ -1,37 +1,4 @@
-var request   = new Request;
-
-function Request () {
-  var https     = require("https");
-  var urlParser = require("url");
-
-  this.get = function (url, fn) {
-    var response = "";  
-    var options  = urlParser.parse(url);
-    
-    options.method          = "GET";
-    options.withCredentials = false;
-    
-    https.request(options, function(resp){
-      
-      resp.on('data', function(data){
-        response += data;
-      });   
-      
-      resp.on('end', function(){
-        fn(null, {
-          status : resp.statusCode,
-          text   : response
-        });
-      });
-      
-      resp.on('error', function(err){
-        fn(err);  
-      });
-      
-    }).end();
-  }  
-}
-
+var Request = require('./request');
 
 function RippleTxt(opts) {
   this.txts = {};
@@ -43,7 +10,8 @@ function RippleTxt(opts) {
  * 
  */
 RippleTxt.prototype.get = function (domain, fn) {
-  var self = this;
+  var self    = this;
+  var request = new Request;
   
   if (self.txts[domain]) return fn(null, self.txts[domain]);
   
@@ -56,7 +24,7 @@ RippleTxt.prototype.get = function (domain, fn) {
   next();
   function next () {
     if (!urls.length) return fn(new Error("No ripple.txt found"));    
-
+    
     request.get(urls.pop(), function(err, resp){
 
       if (resp.status != 200) return next();
