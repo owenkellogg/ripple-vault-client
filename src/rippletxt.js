@@ -27,7 +27,7 @@ RippleTxt.prototype.get = function (domain, fn) {
     
     request.get(urls.pop(), function(err, resp){
 
-      if (resp.status != 200) return next();
+      if (err) return next();
       var sections = self.parse(resp.text);
       self.txts[domain] = sections;
       fn(null, sections);      

@@ -1,12 +1,11 @@
-var RippleTxt = require('./rippletxt');
+var AuthInfo = require('./authinfo');
 
 function VaultClient(opts) {
   if (!opts) opts = {};  
   else if (typeof opts === "string") opts = {domain:opts};
   
   this.domain    = opts.domain || 'ripple.com';
-  this.rippleTxt = new RippleTxt();
-
+  this.authInfo  = new AuthInfo;
 };
 
 
@@ -14,8 +13,8 @@ function VaultClient(opts) {
 VaultClient.prototype.login = function(username, password, fn) {
   var self = this;
   
-  self.rippleTxt.get(self.domain, function(err, resp){
-
+  self.authInfo.get(self.domain, username, function(err, res){
+    console.log(err, res);  
   });
   
   fn(null, {
