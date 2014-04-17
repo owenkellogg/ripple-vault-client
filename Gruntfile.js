@@ -17,14 +17,16 @@ module.exports = function (grunt) {
           filename: "build/ripple-vault-client.js"
         }
       }
-    },
-    watch: {
+    },    
+    delta: {
       lib: {
         files: 'src/**/*.js',
         tasks: 'webpack'
       }
     }
   });
-
+  
+  grunt.renameTask('watch', 'delta');
+  grunt.registerTask('watch', ['webpack', 'delta'] );
   grunt.registerTask('default', ['webpack']);
 };
