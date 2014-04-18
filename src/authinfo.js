@@ -1,5 +1,5 @@
 var RippleTxt = require('./rippletxt');
-var $         = require('jquery');
+var $         = require('./ajax');
 
 function AuthInfo () {
   this.rippleTxt = new RippleTxt;

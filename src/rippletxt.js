@@ -1,4 +1,4 @@
-var $ = require('jquery');
+var $ = require('./ajax');
 
 function RippleTxt(opts) {
   this.txts = {};
@@ -15,9 +15,9 @@ RippleTxt.prototype.get = function (domain, fn) {
   if (self.txts[domain]) return fn(null, self.txts[domain]);
   
   var urls = [
-    'http://ripple.'+domain+'/ripple.txt',
-    'http://www.'+domain+'/ripple.txt',
-    'http://'+domain+'/ripple.txt'
+    'https://ripple.'+domain+'/ripple.txt',
+    'https://www.'+domain+'/ripple.txt',
+    'https://'+domain+'/ripple.txt'
   ].reverse();
          
   next();
@@ -26,7 +26,6 @@ RippleTxt.prototype.get = function (domain, fn) {
 
     $.ajax({
       url      : urls.pop(),
-      dataType : 'text',
       success  : function (data) {
         var sections = self.parse(data);
         self.txts[domain] = sections;
