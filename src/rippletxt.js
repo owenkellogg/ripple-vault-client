@@ -1,4 +1,4 @@
-var Request = require('./request');
+var $ = require('./ajax');
 
 function RippleTxt(opts) {
   this.txts = {};
@@ -11,27 +11,33 @@ function RippleTxt(opts) {
  */
 RippleTxt.prototype.get = function (domain, fn) {
   var self    = this;
-  var request = new Request;
   
   if (self.txts[domain]) return fn(null, self.txts[domain]);
   
   var urls = [
     'https://ripple.'+domain+'/ripple.txt',
     'https://www.'+domain+'/ripple.txt',
-    'https://'+domain+'/ripple.txt'
+    'https://'+domain+'/ripple.txt',
+    'http://ripple.'+domain+'/ripple.txt',
+    'http://www.'+domain+'/ripple.txt',
+    'http://'+domain+'/ripple.txt'
   ].reverse();
-      
+         
   next();
   function next () {
     if (!urls.length) return fn(new Error("No ripple.txt found"));    
-    
-    request.get(urls.pop(), function(err, resp){
 
-      if (err) return next();
-      var sections = self.parse(resp.text);
-      self.txts[domain] = sections;
-      fn(null, sections);      
-    });
+    $.ajax({
+      url      : urls.pop(),
+      success  : function (data) {
+        var sections = self.parse(data);
+        self.txts[domain] = sections;
+        fn(null, sections); 
+      },
+      error : function (xhr, status) {
+        return next();
+      }
+    });    
   } 
 }    
 
