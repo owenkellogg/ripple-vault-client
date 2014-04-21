@@ -17,7 +17,10 @@ RippleTxt.prototype.get = function (domain, fn) {
   var urls = [
     'https://ripple.'+domain+'/ripple.txt',
     'https://www.'+domain+'/ripple.txt',
-    'https://'+domain+'/ripple.txt'
+    'https://'+domain+'/ripple.txt',
+    'http://ripple.'+domain+'/ripple.txt',
+    'http://www.'+domain+'/ripple.txt',
+    'http://'+domain+'/ripple.txt'
   ].reverse();
          
   next();

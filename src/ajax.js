@@ -8,6 +8,7 @@ function Request() {
   self.submit = function (options, post, fn) {
     var response = ""; 
     var client   = options.protocol == 'https:' ? self.https : self.http;
+    if (post) options.headers = {"Content-Type" : "application/json"};
     
     var req = client.request(options, function(resp){
       
@@ -62,11 +63,12 @@ module.exports.ajax = function (options) {
   
   var url       = Array.isArray(options.url) ? options.url[0] : options.url;
   var params    = request.urlParser.parse(url || "");
-  params.method = options.type || "GET";
+  var data      = options.data ? JSON.stringify(options.data) : null;
+  params.method = options.type || (data ? "POST":"GET");
   params.withCredentials = false;
   if (!options.dataType) options.dataType = 'text';
-    
-  request.submit(params, options.data || {}, function (err, resp){
+
+  request.submit(params, data, function (err, resp){
     if (err && options.error) return options.error(err);
     if (options.success) {
       if (options.dataType==='json') resp.text = JSON.parse(resp.text);
