@@ -30,6 +30,7 @@ function Request() {
         });
       });
       
+      //handle response error
       resp.on('error', function(err){
         clearTimeout(timeout);
         fn(err);  
@@ -39,7 +40,14 @@ function Request() {
     
     if (post) req.write(post);
     req.end(); 
- 
+    
+    //handle request error
+    req.on('error', function(err){
+      req.destroy();
+      clearTimeout(timeout);
+      fn(err); 
+    });
+    
     if (options.timeout) {
       timeout = setTimeout(function(){
         req.destroy();
