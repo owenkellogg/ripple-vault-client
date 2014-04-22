@@ -10,6 +10,23 @@ var ripple  = require('ripple-lib');
 var sjcl    = ripple.sjcl;
 var $       = require('./ajax');
 
+
+var cryptConfig = {
+  cipher : "aes",
+  mode   : "ccm",
+  ts     : 64,   // tag length
+  ks     : 256,  // key size
+  iter   : 1000  // iterations (key derivation)
+};
+
+
+function extend(obj, obj2) {
+  var newObject = JSON.parse(JSON.stringify(obj));
+  if (obj2) for (var key in obj2) newObject[key] = obj2[key];
+  return newObject;
+}  
+
+
 // Full domain hash based on SHA512
 function fdh(data, bytelen)
 {
@@ -33,6 +50,7 @@ function fdh(data, bytelen)
   return output;
 }
 
+
 // This is a function to derive different hashes from the same key. Each hash
 // is derived as HMAC-SHA512HALF(key, token).
 function keyHash(key, token) {
@@ -41,7 +59,13 @@ function keyHash(key, token) {
 }
   
 
-module.exports.deriveRemotely = function (opts, purpose, username, secret, fn) {
+/****** exposed functions ******/
+
+module.exports.derive = function (opts, purpose, username, secret, fn) {
+  
+  var tokens;
+  if (purpose=='login') tokens = ['id', 'crypt'];
+  else                  tokens = ['unlock'];
 
   var iExponent = new sjcl.bn(String(opts.exponent)),
       iModulus  = new sjcl.bn(String(opts.modulus)),
@@ -91,11 +115,13 @@ module.exports.deriveRemotely = function (opts, purpose, username, secret, fn) {
         var iRandomInv = iRandom.inverseMod(iModulus);
         var iSigned    = iSignres.mulmod(iRandomInv, iModulus);
         var key        = iSigned.toBits();
-
-        fn (null, {
-          id    : keyHash(key, "id"),
-          crypt : keyHash(key, "crypt")
+        var result     = {};
+        
+        tokens.forEach(function (token) {
+          result[token] = keyHash(key, token);
         });
+                            
+        fn (null, result);
       } else {
         // XXX Handle error
       }        
@@ -106,3 +132,40 @@ module.exports.deriveRemotely = function (opts, purpose, username, secret, fn) {
   });
 }
 
+
+module.exports.encrypt = function(key, data)
+{
+  key = sjcl.codec.hex.toBits(key);
+
+  var opts = extend(cryptConfig);
+
+  var encryptedObj = JSON.parse(sjcl.encrypt(key, data, opts));
+  var version = [sjcl.bitArray.partial(8, 0)];
+  var initVector = sjcl.codec.base64.toBits(encryptedObj.iv);
+  var ciphertext = sjcl.codec.base64.toBits(encryptedObj.ct);
+
+  var encryptedBits = sjcl.bitArray.concat(version, initVector);
+  encryptedBits = sjcl.bitArray.concat(encryptedBits, ciphertext);
+
+  return sjcl.codec.base64.fromBits(encryptedBits);
+}
+
+
+module.exports.decrypt = function(key, data)
+{
+  key = sjcl.codec.hex.toBits(key);
+  var encryptedBits = sjcl.codec.base64.toBits(data);
+
+  var version = sjcl.bitArray.extract(encryptedBits, 0, 8);
+
+  if (version !== 0) {
+    throw new Error("Unsupported encryption version: "+version);
+  }
+
+  var encrypted = extend(cryptConfig, {
+    iv: sjcl.codec.base64.fromBits(sjcl.bitArray.bitSlice(encryptedBits, 8, 8+128)),
+    ct: sjcl.codec.base64.fromBits(sjcl.bitArray.bitSlice(encryptedBits, 8+128))
+  });
+
+  return sjcl.decrypt(key, JSON.stringify(encrypted));
+} 
