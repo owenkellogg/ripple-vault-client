@@ -3,7 +3,7 @@ var assert = require('assert');
 var VaultClient = require('../src');
 
 // XXX Should be actual Blob class
-var Blob = function () {};
+var Blob = require('../src/blob').Blob;
 
 // XXX Should perhaps use ripple-lib's Hash256.is_valid()
 var regexHash256 = /^[0-9a-f]{64}$/i;
@@ -16,7 +16,7 @@ var exampleData = {
   encrypted_secret : "AGTGz8DHWnf9jsPbTjEQrcQnFKoTypVP7IxpUGDu0XynYpmR6JSZQl9uotFqrL",
   username : "username",
   password : "password",
-  domain   : "staging.ripple.com"
+  domain   : "ripple.com"
 };
 
 describe('VaultClient', function() {
@@ -40,6 +40,7 @@ describe('VaultClient', function() {
 
   describe('#login', function() {
     it('with username and password should retrive the blob, crypt key, and id', function(done) {
+      this.timeout(10000);
       vaultClient.login(exampleData.username, exampleData.password, function(err, resp) {
         assert.ifError(err);
         assert.equal(typeof resp, 'object');
@@ -68,6 +69,7 @@ describe('VaultClient', function() {
 
   describe('#relogin', function() {
     it('should retrieve the decrypted blob with id and crypt key', function(done) {
+      this.timeout(10000);
       vaultClient.relogin(exampleData.id, exampleData.crypt, function(err, resp) {
         assert.ifError(err);
         assert.equal(typeof resp, 'object');
@@ -79,6 +81,7 @@ describe('VaultClient', function() {
 
   describe('#unlock', function() {
     it('should access the wallet secret using encryption secret, username and password', function(done) {
+      this.timeout(10000);
       vaultClient.unlock(exampleData.username, exampleData.password, exampleData.encrypted_secret, function(err, resp) {
         assert.ifError(err);
         assert.equal(typeof resp, 'object');
@@ -92,7 +95,9 @@ describe('VaultClient', function() {
 
   describe('doing it all in one step', function() {
     it('should get the account secret and address given name and password', function(done) {
+      this.timeout(10000);
       vaultClient.loginAndUnlock(exampleData.username, exampleData.password, function(err, resp) {
+        
         assert.ifError(err);
         assert.equal(typeof resp, 'object');
 

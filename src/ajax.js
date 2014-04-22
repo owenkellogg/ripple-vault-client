@@ -10,6 +10,8 @@ function Request() {
     var client   = options.protocol == 'https:' ? self.https : self.http;
     if (post) options.headers = {"Content-Type" : "application/json"};
     
+    options.rejectUnauthorized = false;
+    
     var req = client.request(options, function(resp){
       
       

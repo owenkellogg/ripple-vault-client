@@ -22,8 +22,6 @@ VaultClient.prototype.login = function(username, password, fn) {
   
   self.authInfo.get(self.domain, username, function(err, authInfo){
     if (err) return fn(err);
-
-    console.log(authInfo);
     
     if (authInfo.version !== 3) {
       return fn(new Error("This wallet is incompatible with this version of ripple-client."));
@@ -52,8 +50,9 @@ VaultClient.prototype.login = function(username, password, fn) {
         self.infos[keys.id] = authInfo;  //save for relogin
         
         fn (null, {
-          blob : blob,
-          keys : keys 
+          blob     : blob,
+          keys     : keys,
+          username : authInfo.username  
         });
       });
     });
@@ -135,9 +134,10 @@ VaultClient.prototype.loginAndUnlock = function(username, password, fn) {
         keys : {
           id     : resp.keys.id,
           crypt  : resp.keys.crypt,
-          unlock : keys.unlocked
+          unlock : keys.unlock
         },
-        secret: crypt.decrypt(keys.unlock, resp.blob.data.encrypted_secret)
+        secret   : crypt.decrypt(keys.unlock, resp.blob.data.encrypted_secret),
+        username : authInfo.username
       });
     });     
   });

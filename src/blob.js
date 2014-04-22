@@ -1,6 +1,5 @@
 var $          = require('./ajax');
 var crypt      = require('./crypt');
-var blobClient = new BlobClient;
 
 //Blob object class
 var BlobObj = function (url, id, key) {
@@ -65,16 +64,15 @@ BlobObj.prototype.decrypt = function (data) {
     return false;
   }
 };
-  
 
-//class for interacting with the blob vault
-function BlobClient () {
-  var self = this;
   
-  this.get = function (url, id, crypt, fn) {
-    var blob = new BlobObj(url, id, crypt);
-    blob.init(fn);
-  }
+//retrive a blob with url, id and key  
+module.exports.get = function (url, id, crypt, fn) {
+
+  var blob = new BlobObj(url, id, crypt);
+  blob.init(fn);
 }
 
-module.exports = blobClient;
+
+//blob object class
+module.exports.Blob = BlobObj

@@ -26,15 +26,16 @@ RippleTxt.prototype.get = function (domain, fn) {
   next();
   function next () {
     if (!urls.length) return fn(new Error("No ripple.txt found"));    
-
+    var url = urls.pop();
     $.ajax({
-      url      : urls.pop(),
+      url      : url,
       success  : function (data) {
+        
         var sections = self.parse(data);
         self.txts[domain] = sections;
         fn(null, sections); 
       },
-      error : function (xhr, status) {
+      error : function (err) {
         return next();
       }
     });    
