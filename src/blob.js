@@ -1,16 +1,8 @@
 var $          = require('./ajax');
-var ripple     = require('ripple-lib');
-var sjcl       = ripple.sjcl;
+var crypt      = require('./crypt');
 var blobClient = new BlobClient;
 
-var cryptConfig = {
-  cipher : "aes",
-  mode   : "ccm",
-  ts     : 64,   // tag length
-  ks     : 256,  // key size
-  iter   : 1000  // iterations (key derivation)
-};
-
+//Blob object class
 var BlobObj = function (url, id, key) {
   this.url  = url;
   this.id   = id;
@@ -18,6 +10,7 @@ var BlobObj = function (url, id, key) {
   this.data = {};
 };
 
+//init new blob object
 BlobObj.prototype.init = function (fn) {
   var self = this;
   if (self.url.indexOf("://") === -1) self.url = "http://" + url;
@@ -35,7 +28,8 @@ BlobObj.prototype.init = function (fn) {
         }
         
         // TODO: Apply patches
-        fn(null, self);
+        
+        fn(null, self);//return with newly decrypted blob
         
       } else {
         fn(new Error("Could not retrieve blob"));
@@ -45,11 +39,25 @@ BlobObj.prototype.init = function (fn) {
      fn(err);
   }});    
 } 
- 
+
+
+//decrypt secret with unlock key
+BlobObj.prototype.decryptSecret = function (secretUnlockKey) {
+  return crypt.decrypt(secretUnlockKey, this.data.encrypted_secret);
+};
+
+
+//encrypt secret with unlock key
+BlobObj.prototype.encryptSecret = function (secretUnlockKey, secret) {
+  return crypt.encrypt(secretUnlockKey, secret);
+};
+   
+
+//decrypt blob with crypt key   
 BlobObj.prototype.decrypt = function (data) {
   
   try {
-    this.data = JSON.parse(decrypt(this.key, data));
+    this.data = JSON.parse(crypt.decrypt(this.key, data));
     return this;
   } catch (e) {
     console.log("client: blob: decryption failed", e.toString());
@@ -58,48 +66,8 @@ BlobObj.prototype.decrypt = function (data) {
   }
 };
   
-function extend(obj, obj2) {
-  var newObject = JSON.parse(JSON.stringify(obj));
-  if (obj2) for (var key in obj2) newObject[key] = obj2[key];
-  return newObject;
-} 
- 
-function encrypt(key, data)
-{
-  key = sjcl.codec.hex.toBits(key);
 
-  var opts = extend(cryptConfig);
-
-  var encryptedObj = JSON.parse(sjcl.encrypt(key, data, opts));
-  var version = [sjcl.bitArray.partial(8, 0)];
-  var initVector = sjcl.codec.base64.toBits(encryptedObj.iv);
-  var ciphertext = sjcl.codec.base64.toBits(encryptedObj.ct);
-
-  var encryptedBits = sjcl.bitArray.concat(version, initVector);
-  encryptedBits = sjcl.bitArray.concat(encryptedBits, ciphertext);
-
-  return sjcl.codec.base64.fromBits(encryptedBits);
-}
-
-function decrypt(key, data)
-{
-  key = sjcl.codec.hex.toBits(key);
-  var encryptedBits = sjcl.codec.base64.toBits(data);
-
-  var version = sjcl.bitArray.extract(encryptedBits, 0, 8);
-
-  if (version !== 0) {
-    throw new Error("Unsupported encryption version: "+version);
-  }
-
-  var encrypted = extend(cryptConfig, {
-    iv: sjcl.codec.base64.fromBits(sjcl.bitArray.bitSlice(encryptedBits, 8, 8+128)),
-    ct: sjcl.codec.base64.fromBits(sjcl.bitArray.bitSlice(encryptedBits, 8+128))
-  });
-
-  return sjcl.decrypt(key, JSON.stringify(encrypted));
-}  
-
+//class for interacting with the blob vault
 function BlobClient () {
   var self = this;
   
