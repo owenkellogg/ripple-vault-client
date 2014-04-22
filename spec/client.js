@@ -12,20 +12,24 @@ var regexHash256 = /^[0-9a-f]{64}$/i;
 var exampleData = {
   id: "984a644ec3b56d32b0404777e1eb73390c4b0742a6a0e183f07861056b6746de",
   crypt: "29a0c8b471a52aefef7dc5069eec914d9a42f7b16ce4b22cb6263e39f238f867",
-  unlock: "a50ab289b4d533ae1417250187135abbe89d6e85858b08fe655a24cdf148657d"
+  unlock: "a50ab289b4d533ae1417250187135abbe89d6e85858b08fe655a24cdf148657d",
+  encrypted_secret : "AGTGz8DHWnf9jsPbTjEQrcQnFKoTypVP7IxpUGDu0XynYpmR6JSZQl9uotFqrL",
+  username : "username",
+  password : "password",
+  domain   : "staging.ripple.com"
 };
 
 describe('VaultClient', function() {
   var vaultClient;
 
   beforeEach(function() {
-    vaultClient = new VaultClient();
+    vaultClient = new VaultClient({ domain: exampleData.domain });
   });
 
   describe('initialization', function() {
     it('should be initialized with a domain', function() {
-      var vaultClient = new VaultClient({ domain: 'zenlabs.co' });
-      assert.strictEqual(vaultClient.domain, 'zenlabs.co');
+      var vaultClient = new VaultClient({ domain: exampleData.domain });
+      assert.strictEqual(vaultClient.domain, exampleData.domain);
     });
 
     it('should default to ripple.com without a domain', function() {
@@ -36,7 +40,7 @@ describe('VaultClient', function() {
 
   describe('#login', function() {
     it('with username and password should retrive the blob, crypt key, and id', function(done) {
-      vaultClient.login('username', 'password', function(err, resp) {
+      vaultClient.login(exampleData.username, exampleData.password, function(err, resp) {
         assert.ifError(err);
         assert.equal(typeof resp, 'object');
 
@@ -64,7 +68,7 @@ describe('VaultClient', function() {
 
   describe('#relogin', function() {
     it('should retrieve the decrypted blob with id and crypt key', function(done) {
-      vaultClient.relogin('id', 'crypt', function(err, resp) {
+      vaultClient.relogin(exampleData.id, exampleData.crypt, function(err, resp) {
         assert.ifError(err);
         assert.equal(typeof resp, 'object');
         assert(resp.blob instanceof Blob);
@@ -75,7 +79,7 @@ describe('VaultClient', function() {
 
   describe('#unlock', function() {
     it('should access the wallet secret using encryption secret, username and password', function(done) {
-      vaultClient.unlock('username', 'password', 'encryptSecret', function(err, resp) {
+      vaultClient.unlock(exampleData.username, exampleData.password, exampleData.encrypted_secret, function(err, resp) {
         assert.ifError(err);
         assert.equal(typeof resp, 'object');
         assert.equal(typeof resp.keys, 'object');
@@ -88,7 +92,7 @@ describe('VaultClient', function() {
 
   describe('doing it all in one step', function() {
     it('should get the account secret and address given name and password', function(done) {
-      vaultClient.loginAndUnlock('username', 'password', function(err, resp) {
+      vaultClient.loginAndUnlock(exampleData.username, exampleData.password, function(err, resp) {
         assert.ifError(err);
         assert.equal(typeof resp, 'object');
 
