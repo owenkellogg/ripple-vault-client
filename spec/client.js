@@ -1,6 +1,6 @@
 var assert = require('assert');
 
-var VaultClient = require(__dirname + '/../');
+var VaultClient = require('../src');
 
 // XXX Should be actual Blob class
 var Blob = function () {};
