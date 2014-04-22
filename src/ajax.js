@@ -6,17 +6,19 @@ function Request() {
   self.urlParser = require("url");
   
   self.submit = function (options, post, fn) {
-    var response = ""; 
+    var response = "", timeout; 
     var client   = options.protocol == 'https:' ? self.https : self.http;
     if (post) options.headers = {"Content-Type" : "application/json"};
     
     var req = client.request(options, function(resp){
+      
       
       resp.on('data', function(data){
         response += data;
       });   
       
       resp.on('end', function(){
+        clearTimeout(timeout);
         if (!resp.statusCode ||
           resp.statusCode>=400) return fn({
           status : resp.statusCode,
@@ -29,13 +31,24 @@ function Request() {
       });
       
       resp.on('error', function(err){
+        clearTimeout(timeout);
         fn(err);  
       });
       
     });
     
     if (post) req.write(post);
-    req.end();    
+    req.end(); 
+ 
+    if (options.timeout) {
+      timeout = setTimeout(function(){
+        req.destroy();
+        fn({
+          status : 408,
+          text   : "Request timeout"
+        });
+      }, options.timeout);
+    }
   }
 }
 
@@ -66,6 +79,7 @@ module.exports.ajax = function (options) {
   var data      = options.data ? JSON.stringify(options.data) : null;
   params.method = options.type || (data ? "POST":"GET");
   params.withCredentials = false;
+  if (options.timeout)   params.timeout   = options.timeout;
   if (!options.dataType) options.dataType = 'text';
 
   request.submit(params, data, function (err, resp){
