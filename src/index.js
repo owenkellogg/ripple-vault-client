@@ -62,15 +62,17 @@ VaultClient.prototype.login = function(username, password, fn) {
 
 /*
  * Relogin -
- * retreive and decrypt blob using id and crypt derived previously.
+ * retreive and decrypt blob using a blob url, id and crypt derived previously.
  * 
  */
-VaultClient.prototype.relogin = function(id, cryptKey, fn) { 
-  var authInfo = this.infos[id]; 
+VaultClient.prototype.relogin = function(url, id, cryptKey, fn) {
   
-  if (!authInfo) return fn(new Error("Unable to find authInfo"));
+  //use the url from previously retrieved authInfo, if necessary
+  if (!url && this.infos[id]) url = this.infos[id].blobvault;
   
-  blobClient.get(authInfo.blobvault, id, cryptKey, function (err, blob) {
+  if (!url) return fn(new Error("Blob vault URL is required"));
+  
+  blobClient.get(url, id, cryptKey, function (err, blob) {
     if (err) return fn(err);
     
     fn (null, {
