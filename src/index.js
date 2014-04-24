@@ -10,6 +10,30 @@ function VaultClient(opts) {
   this.authInfo  = new AuthInfo;
   this.infos     = {};
 };
+  
+  
+/* 
+ * normalizeUsername - 
+ * Reduce username to standardized form.
+ * Strips whitespace at beginning and end.
+ */
+VaultClient.prototype.normalizeUsername = function (username) {
+  username = ""+username;
+  username = username.trim();
+  return username;
+};
+
+
+/*
+ * normalizePassword - 
+ * Reduce password to standardized form.
+ * Strips whitespace at beginning and end.
+ */
+VaultClient.prototype.normalizePassword = function (password) {
+  password = ""+password;
+  password = password.trim();
+  return password;
+};    
 
 
 /*
@@ -142,6 +166,67 @@ VaultClient.prototype.loginAndUnlock = function(username, password, fn) {
         username : authInfo.username
       });
     });     
+  });
+};
+
+
+/*
+ * Register
+ * register a new user and save to the blob vault
+ * 
+ * @param {object} options
+ * @param {string} options.username
+ * @param {string} options.password
+ * @param {string} options.masterkey   //optional, will create if absent
+ * @param {string} options.activateLink
+ * @param {object} options.oldUserBlob //optional
+ * @param {function} fn
+ */
+VaultClient.prototype.register = function (options, fn) {
+  var self   = this,
+    username = this.normalizeUsername(options.username),
+    password = this.normalizePassword(options.password);
+    
+
+  self.authInfo.get(self.domain, username, function(err, authInfo){
+    
+    if (err) return fn(err);
+    
+    if ("string" !== typeof authInfo.blobvault) {
+      return fn(new Error("No blobvault specified in the authinfo."));
+    }
+    
+    
+    if (!authInfo.pakdf) {
+      return fn(new Error("No settings for PAKDF in auth packet."));
+    }    
+    
+    //derive login keys
+    crypt.derive(authInfo.pakdf, 'login', username.toLowerCase(), password, function(err, loginKeys){
+      if (err) return fn(err);
+      
+      //derive unlock key
+      crypt.derive(authInfo.pakdf, 'unlock', username.toLowerCase(), password, function(err, unlockKeys){
+        if (err) return fn(err);
+        
+        var params = {
+          'url'          : authInfo.blobvault,
+          'id'           : loginKeys.id,
+          'crypt'        : loginKeys.crypt,
+          'unlock'       : unlockKeys.unlock,
+          'username'     : username,
+          'email'        : options.email,
+          'masterkey'    : options.masterkey || crypt.createMaster(),
+          'activateLink' : options.activateLink,
+          'oldUserBlob'  : options.oldUserBlob 
+        }
+        
+        blobClient.create(params, function(err, blob){
+          if (err) return fn(err);
+          fn(null, blob, loginKeys, authInfo.username);
+        }); 
+      });
+    });
   });
 };
 

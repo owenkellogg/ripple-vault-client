@@ -6,10 +6,12 @@
  * processes or peer-assisted key derivation (PAKDF).
  */
 
-var ripple  = require('ripple-lib');
-var sjcl    = ripple.sjcl;
-var $       = require('./ajax');
+var ripple = require('ripple-lib');
+var sjcl   = ripple.sjcl;
+var $      = require('./ajax');
 
+var Base58Utils   = require('./base58');
+var RippleAddress = require('./types').RippleAddress;
 
 var cryptConfig = {
   cipher : "aes",
@@ -169,3 +171,16 @@ module.exports.decrypt = function(key, data)
 
   return sjcl.decrypt(key, JSON.stringify(encrypted));
 } 
+
+
+module.exports.createSecret = function (words) {
+  return sjcl.codec.hex.fromBits(sjcl.random.randomWords(words));
+}
+
+module.exports.createMaster = function () {
+  return Base58Utils.encode_base_check(33, sjcl.codec.bytes.fromBits(sjcl.random.randomWords(4)));
+}
+
+module.exports.getAddress = function (masterkey) {
+  return new RippleAddress(masterkey).getAddress();
+}
