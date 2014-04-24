@@ -169,6 +169,7 @@ VaultClient.prototype.loginAndUnlock = function(username, password, fn) {
   });
 };
 
+
 /*
  * Exists -
  * check blobvault for existance of username
@@ -181,8 +182,27 @@ VaultClient.prototype.exists = function (username, fn) {
   });
 }
 
+
 /*
- * Register
+ * Verify -
+ * verify an email address for an existing user
+ * 
+ */
+VaultClient.prototype.verify = function (username, token, fn) {
+  
+  this.authInfo.get(this.domain, username.toLowerCase(), function (err, authInfo) {
+    if (err) return fn(err);
+
+    if ("string" !== typeof authInfo.blobvault) {
+      return fn(new Error("No blobvault specified in the authinfo."));
+    }
+
+    blobClient.verify(authInfo.blobvault, username.toLowerCase(), token, fn);
+  });    
+}
+
+/*
+ * Register -
  * register a new user and save to the blob vault
  * 
  * @param {object} options

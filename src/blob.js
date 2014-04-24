@@ -116,14 +116,34 @@ BlobObj.prototype.encrypt = function()
 
 /***** exposed methods ****/
 
+
 //blob object class
 module.exports.Blob = BlobObj
+
   
 //retrive a blob with url, id and key  
 module.exports.get = function (url, id, crypt, fn) {
 
   var blob = new BlobObj(url, id, crypt);
   blob.init(fn);
+}
+
+
+//verify email address
+module.exports.verify = function (url, username, token, fn) {
+
+  $.ajax({
+    method   : 'GET',
+    dataType : 'json',
+    url      : url + '/v1/user/' + username + '/verify/' + token,
+    success  : function(data) {
+      if (data.result === "success") return fn(null, data);
+      else return fn(new Error("Failed to verify the account"));
+    },
+    error: function(err) {
+      return fn(err);
+    }
+  });
 }
 
 
@@ -137,7 +157,7 @@ module.exports.get = function (url, id, crypt, fn) {
  * @param {string} options.unlock
  * @param {string} options.username
  * @param {string} options.masterkey
- * @param {object=} options.oldUserBlob
+ * @param {object} options.oldUserBlob
  * @param {function} callback
  */
 module.exports.create = function (options, fn)
