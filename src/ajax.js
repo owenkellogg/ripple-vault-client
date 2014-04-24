@@ -93,7 +93,11 @@ module.exports.ajax = function (options) {
   if (!options.dataType) options.dataType = 'text';
 
   request.submit(params, data, function (err, resp){
-    if (err && options.error) return options.error(err);
+    if (err && options.error) {
+      if (options.dataType==='json') err.text = JSON.parse(err.text);
+      return options.error(err.text);
+    }
+    
     if (options.success) {
       if (options.dataType==='json') resp.text = JSON.parse(resp.text);
       return options.success(resp.text);
