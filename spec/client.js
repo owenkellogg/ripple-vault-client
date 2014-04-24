@@ -38,6 +38,18 @@ describe('VaultClient', function() {
       assert.strictEqual(vaultClient.domain, 'ripple.com');
     });
   });
+  
+  describe('#exists', function() {
+    it('should determine if a username exists on the domain', function(done) {
+      this.timeout(10000);
+      vaultClient.exists(exampleData.username, function(err, resp) {
+        assert.ifError(err);
+        assert.equal(typeof resp, 'boolean');
+        done();
+      });
+    });
+  });
+  
 
   describe('#login', function() {
     it('with username and password should retrive the blob, crypt key, and id', function(done) {
@@ -94,7 +106,7 @@ describe('VaultClient', function() {
     });
   });
 
-  describe('doing it all in one step', function() {
+  describe('#loginAndUnlock', function() {
     it('should get the account secret and address given name and password', function(done) {
       this.timeout(10000);
       vaultClient.loginAndUnlock(exampleData.username, exampleData.password, function(err, resp) {

@@ -169,6 +169,17 @@ VaultClient.prototype.loginAndUnlock = function(username, password, fn) {
   });
 };
 
+/*
+ * Exists -
+ * check blobvault for existance of username
+ * 
+ */
+VaultClient.prototype.exists = function (username, fn) {
+  this.authInfo.get(this.domain, username.toLowerCase(), function(err, authInfo){
+    if (err) return fn(err);
+    return fn(null, !!authInfo.exists);
+  });
+}
 
 /*
  * Register

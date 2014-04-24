@@ -26,7 +26,7 @@ Run `npm test` to test the high-level behavior specs
 
 ## Usage
 
-    vaultClient = new VaultClient();
+    vaultClient = new VaultClient(domain);
 
     vaultClient.login(username, password, callback);
 
@@ -35,6 +35,10 @@ Run `npm test` to test the high-level behavior specs
     vaultClient.unlock(username, password, encryptSecret, callback);
 
     vaultClient.loginAndUnlock(username, password, callback);
+    
+    vaultClient.exists(username, callback);
+    
+    vaultClient.register(options, callback);
 
 ## Installation
 
