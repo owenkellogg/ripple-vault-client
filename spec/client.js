@@ -103,7 +103,7 @@ describe('VaultClient', function() {
   });
 
   describe('#loginAndUnlock', function() {
-    it('should get the account secret and address given name and password', function(done) {
+    it('should get the decrypted blob and decrypted secret given name and password', function(done) {
       this.timeout(10000);
       vaultClient.loginAndUnlock(exampleData.username, exampleData.password, function(err, resp) {
         
@@ -178,7 +178,7 @@ describe('Blob', function() {
     }); 
         
     describe('#unshift', function() {
-      it('should prepend data to an array in the blob', function(done) {
+      it('should prepend an item to an array in the blob', function(done) {
         this.timeout(10000)
   
         blob.unshift("/testArray", {
