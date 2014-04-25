@@ -209,6 +209,7 @@ VaultClient.prototype.verify = function (username, token, fn) {
  * @param {string} options.username
  * @param {string} options.password
  * @param {string} options.masterkey   //optional, will create if absent
+ * @param {string} options.email
  * @param {string} options.activateLink
  * @param {object} options.oldUserBlob //optional
  * @param {function} fn

@@ -55,7 +55,7 @@ function Request() {
         req.destroy();
         fn({
           status : 408,
-          text   : "Request timeout"
+          text   : '{"error":"Request timeout"}'
         });
       }, options.timeout);
     }
@@ -103,4 +103,9 @@ module.exports.ajax = function (options) {
       return options.success(resp.text);
     }
   });
+}
+
+
+module.exports.parse = function (url) {
+  return request.urlParser.parse(url);
 }

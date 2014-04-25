@@ -1,23 +1,20 @@
-var assert = require('assert');
-
+var assert      = require('assert');
 var VaultClient = require('../src');
-
-// XXX Should be actual Blob class
-var Blob = require('../src/blob').Blob;
+var Blob        = require('../src/blob').Blob;
 
 // XXX Should perhaps use ripple-lib's Hash256.is_valid()
 var regexHash256 = /^[0-9a-f]{64}$/i;
 
 // XXX This is 100% bogus data
 var exampleData = {
-  id       : "984a644ec3b56d32b0404777e1eb73390c4b0742a6a0e183f07861056b6746de",
-  crypt    : "29a0c8b471a52aefef7dc5069eec914d9a42f7b16ce4b22cb6263e39f238f867",
-  unlock   : "a50ab289b4d533ae1417250187135abbe89d6e85858b08fe655a24cdf148657d",
-  blobURL  : "https://id.ripple.com",
-  username : "username",
-  password : "password",
-  domain   : "ripple.com",
-  encrypted_secret : "AGTGz8DHWnf9jsPbTjEQrcQnFKoTypVP7IxpUGDu0XynYpmR6JSZQl9uotFqrL"
+  id       : "9236cd8a9cc7f909633d7bb55effd0bd389d67d9ec1a6057bc47dfd813cbcc50",
+  crypt    : "d8c65bf04f29d2bcf2f183f9f70efe03c5cb47dda049c4809ec9cb7d6ac428fd",
+  unlock   : "452b02b80469a6a2ad692264c04d2a3794ea0ab11d8c902ef774190294db2ce2",
+  blobURL  : "http://curlpaste.com:8080",
+  username : "testUser",
+  password : "testPassword",
+  domain   : "curlpaste.com",
+  encrypted_secret : "ABVznT3ENq04CGtJWQWXaNIIPPTeNi8OctPUcBzU67tQXiiVKvfgjKfRF4+/zWTLdzxgJ002"
 };
 
 describe('VaultClient', function() {
@@ -50,7 +47,6 @@ describe('VaultClient', function() {
     });
   });
   
-
   describe('#login', function() {
     it('with username and password should retrive the blob, crypt key, and id', function(done) {
       this.timeout(10000);
@@ -130,3 +126,95 @@ describe('VaultClient', function() {
     });
   });
 });
+
+
+describe('Blob', function() {
+  var vaultClient;
+  
+  vaultClient = new VaultClient({ domain: exampleData.domain });
+  vaultClient.login(exampleData.username, exampleData.password, function(err,resp){
+    assert.ifError(err);
+    var blob = resp.blob;
+
+
+    describe('#set', function() {
+      it('should set a new property in the blob', function(done) {
+        this.timeout(10000)
+  
+        blob.extend("/testObject", {
+          foo    : [],
+        }, function(err, resp){
+          assert.ifError(err);
+          assert.equal(resp.result, 'success');
+          done();
+        });
+      });
+    }); 
+    
+    describe('#extend', function() {
+      it('should extend an object in the blob', function(done) {
+        this.timeout(10000)
+  
+        blob.extend("/testObject", {
+          foobar : "baz",
+        }, function(err, resp){
+          assert.ifError(err);
+          assert.equal(resp.result, 'success');
+          done();
+        });
+      });
+    }); 
+
+    describe('#unset', function() {
+      it('should remove a property from the blob', function(done) {
+        this.timeout(10000)
+  
+        blob.unset("/testObject", function(err, resp){
+          assert.ifError(err);
+          assert.equal(resp.result, 'success');
+          done();
+        });
+      });
+    }); 
+        
+    describe('#unshift', function() {
+      it('should prepend data to an array in the blob', function(done) {
+        this.timeout(10000)
+  
+        blob.unshift("/testArray", {
+          name    : "bob",
+          address : "1234"
+        }, function(err, resp){
+          assert.ifError(err);
+          assert.equal(resp.result, 'success');
+          done();
+        });
+      });
+    });
+    
+    describe('#filter', function() {
+      it('should find a specific entity in an array and apply subcommands to it', function(done) {
+        this.timeout(10000)
+  
+        blob.filter('/testArray', 'name', 'bob', 'extend', '', {description:"Alice"}, function(err, resp){
+          assert.ifError(err);
+          assert.equal(resp.result, 'success');
+          done();
+        });
+      });
+    });    
+
+    describe('#consolidate', function() {
+      it('should consolidate and save changes to the blob', function(done) {
+        this.timeout(10000)
+  
+        blob.consolidate(function(err, resp){
+          assert.ifError(err);
+          assert.equal(resp.result, 'success');
+          blob.unset('/testArray'); //remove all
+          done();
+        });
+      });
+    });    
+  });
+});  

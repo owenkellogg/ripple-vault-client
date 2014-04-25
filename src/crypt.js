@@ -9,6 +9,7 @@
 var ripple = require('ripple-lib');
 var sjcl   = ripple.sjcl;
 var $      = require('./ajax');
+var extend = require("extend");
 
 var Base58Utils   = require('./base58');
 var RippleAddress = require('./types').RippleAddress;
@@ -20,13 +21,6 @@ var cryptConfig = {
   ks     : 256,  // key size
   iter   : 1000  // iterations (key derivation)
 };
-
-
-function extend(obj, obj2) {
-  var newObject = JSON.parse(JSON.stringify(obj));
-  if (obj2) for (var key in obj2) newObject[key] = obj2[key];
-  return newObject;
-}  
 
 
 // Full domain hash based on SHA512
@@ -139,7 +133,7 @@ module.exports.encrypt = function(key, data)
 {
   key = sjcl.codec.hex.toBits(key);
 
-  var opts = extend(cryptConfig);
+  var opts = extend(true, {}, cryptConfig);
 
   var encryptedObj = JSON.parse(sjcl.encrypt(key, data, opts));
   var version = [sjcl.bitArray.partial(8, 0)];
@@ -164,7 +158,7 @@ module.exports.decrypt = function(key, data)
     throw new Error("Unsupported encryption version: "+version);
   }
 
-  var encrypted = extend(cryptConfig, {
+  var encrypted = extend(true, {}, cryptConfig, {
     iv: sjcl.codec.base64.fromBits(sjcl.bitArray.bitSlice(encryptedBits, 8, 8+128)),
     ct: sjcl.codec.base64.fromBits(sjcl.bitArray.bitSlice(encryptedBits, 8+128))
   });
@@ -183,4 +177,13 @@ module.exports.createMaster = function () {
 
 module.exports.getAddress = function (masterkey) {
   return new RippleAddress(masterkey).getAddress();
+}
+
+module.exports.hashSha512 = function (data) {
+  return sjcl.codec.hex.fromBits(sjcl.hash.sha512.hash(data)); 
+}
+
+module.exports.signature = function (secret, data) {
+  var hmac = new sjcl.misc.hmac(sjcl.codec.hex.toBits(secret), sjcl.hash.sha512);
+  return sjcl.codec.hex.fromBits(hmac.mac(data));
 }
