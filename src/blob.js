@@ -577,7 +577,24 @@ var dateAsIso8601 = (function () {
 //blob object class
 module.exports.Blob = BlobObj
 
+//get ripple name for a given address 
+module.exports.getRippleName = function (url, address, fn) {
   
+  if (!crypt.isValidAddress(address)) return fn (new Error("Invalid ripple address"));
+  $.ajax({ 
+    url : url + '/v1/user/' + address,
+    dataType : 'json',
+    success : function (data) {
+      if (data.username) return fn(null, data.username);
+      else if (data.exists === false) return fn (new Error("No ripple name for this address"));
+      else return fn(new Error("Unable to determine if ripple name exists"));
+    },
+    error : function (err) {
+      return fn(new Error("Unable to access vault sever"));
+    }
+  });
+} 
+
 //retrive a blob with url, id and key  
 module.exports.get = function (url, id, crypt, fn) {
 

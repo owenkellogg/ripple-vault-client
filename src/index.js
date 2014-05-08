@@ -35,6 +35,13 @@ VaultClient.prototype.normalizePassword = function (password) {
   return password;
 };    
 
+VaultClient.prototype.getRippleName = function(address, url, fn) {
+
+  //use the url from previously retrieved authInfo, if necessary
+  if (!url && this.infos[id]) url = this.infos[id].blobvault;
+  if (!url) return fn(new Error("Blob vault URL is required"));
+  blobClient.getRippleName(url, address, fn);
+};
 
 /*
  * Login -
@@ -144,17 +151,19 @@ VaultClient.prototype.loginAndUnlock = function(username, password, fn) {
     if (!resp.blob || 
         !resp.blob.data ||
         !resp.blob.data.encrypted_secret) 
-      return (new Error("Unable to retrieve blob and secret."));
+      return fn(new Error("Unable to retrieve blob and secret."));
     
-    if (!resp.keys) return (new Error("Unable to retrieve keys."));
-       
+    if (!resp.keys) return fn(new Error("Unable to retrieve keys."));
+     
     //get authInfo via id - would have been saved from login
     var authInfo = self.infos[resp.keys.id]; 
     if (!authInfo) return fn(new Error("Unable to find authInfo"));
-      
+     
+    
     //derive unlock key
     crypt.derive(authInfo.pakdf, 'unlock', username.toLowerCase(), password, function(err, keys){
       if (err) return fn(err); 
+      
       fn(null, {
         blob : resp.blob,
         keys : {

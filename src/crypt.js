@@ -1,11 +1,3 @@
-/**
- * KEY DERIVATION FUNCTION
- *
- * This service takes care of the key derivation, i.e. converting low-entropy
- * secret into higher entropy secret via either computationally expensive
- * processes or peer-assisted key derivation (PAKDF).
- */
-
 var ripple = require('ripple-lib');
 var sjcl   = ripple.sjcl;
 var $      = require('./ajax');
@@ -57,8 +49,16 @@ function keyHash(key, token) {
 
 /****** exposed functions ******/
 
+
+/**
+ * KEY DERIVATION FUNCTION
+ *
+ * This service takes care of the key derivation, i.e. converting low-entropy
+ * secret into higher entropy secret via either computationally expensive
+ * processes or peer-assisted key derivation (PAKDF).
+ */
 module.exports.derive = function (opts, purpose, username, secret, fn) {
-  
+
   var tokens;
   if (purpose=='login') tokens = ['id', 'crypt'];
   else                  tokens = ['unlock'];
@@ -166,6 +166,9 @@ module.exports.decrypt = function(key, data)
   return sjcl.decrypt(key, JSON.stringify(encrypted));
 } 
 
+module.exports.isValidAddress = function (address) {
+  return ripple.UInt160.is_valid(address);
+}
 
 module.exports.createSecret = function (words) {
   return sjcl.codec.hex.fromBits(sjcl.random.randomWords(words));
