@@ -52,7 +52,9 @@ BlobObj.prototype.init = function (fn) {
     success  : function (data) {
       if (data.result === "success") {
         self.revision = data.revision;
-      
+        
+        self.encrypted_secret = data.encrypted_secret;
+            
         if (!self.decrypt(data.blob)) {
           return fn(new Error("Error while decrypting blob"));
         }
@@ -636,7 +638,6 @@ module.exports.verify = function (url, username, token, fn) {
  */
 module.exports.create = function (options, fn)
 {
-  console.log(options);
   
   var blob      = new BlobObj(options.url, options.id, options.crypt);
   blob.revision = 0;

@@ -56,11 +56,10 @@ describe('VaultClient', function() {
 
         assert(resp.blob instanceof Blob);
 
-        assert.equal(typeof resp.keys, 'object');
-        assert.equal(typeof resp.keys.id, 'string');
-        assert(regexHash256.test(resp.keys.id));
-        assert.equal(typeof resp.keys.crypt, 'string');
-        assert(regexHash256.test(resp.keys.crypt));
+        assert.equal(typeof resp.blob.id, 'string');
+        assert(regexHash256.test(resp.blob.id));
+        assert.equal(typeof resp.blob.key, 'string');
+        assert(regexHash256.test(resp.blob.key));
 
         // This should be the actual username (non-normalized) that the user
         // entered during registration.
