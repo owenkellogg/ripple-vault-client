@@ -119,7 +119,7 @@ BlobObj.prototype.consolidate = function (fn) {
     }  
   };
 
-  $.ajax(this.signRequest(config));
+  $.ajax(BlobObj.signRequestHmac(config, this.data.auth_secret, this.id));
 };
   
   
@@ -184,6 +184,16 @@ BlobObj.prototype.encrypt = function()
 //    this.data.contacts = angular.fromJson(angular.toJson(this.data.contacts));
 
   return crypt.encrypt(this.key, JSON.stringify(this.data));
+};
+
+BlobObj.prototype.decryptBlobCrypt = function (secret) {
+  var recoveryEncryptionKey = crypt.deriveRecoveryEncryptionKeyFromSecret(secret);
+  return crypt.decrypt(recoveryEncryptionKey, this.encrypted_blobdecrypt_key);
+};
+
+BlobObj.prototype.encryptBlobCrypt = function (secret, blobDecryptKey) {
+  var recoveryEncryptionKey = crypt.deriveRecoveryEncryptionKeyFromSecret(secret);
+  return crypt.encrypt(recoveryEncryptionKey, blobDecryptKey);
 };
 
 
@@ -390,55 +400,50 @@ BlobObj.prototype.postUpdate = function (op, pointer, params, fn) {
     data     : {
       blob_id : this.id,
       patch   : crypt.encrypt(this.key, JSON.stringify(params))
-    },
-    
-    success : function(data) {
-      if (data.result === "success") {
-        console.log("client: blob: saved patch as revision", data.revision);
-        return fn(null, data);
-      } else {
-        console.log("client: blob: could not save patch:", data);
-        return fn(new Error("Patch could not be saved - bad result"));
-      }
-    },
-    
-    error : function(err) {
-      console.log("client: blob: could not save patch:", err);
-      return fn(new Error("Patch could not be saved - XHR error"));
     }
   };
 
-  $.ajax(this.signRequest(config));
+  
+  var request = BlobObj.signRequestHmac(config, this.data.auth_secret, this.id);
+
+  request.success = function(data) {
+    if (data.result === "success") {
+      console.log("client: blob: saved patch as revision", data.revision);
+      return fn(null, data);
+    } else {
+      console.log("client: blob: could not save patch:", data);
+      return fn(new Error("Patch could not be saved - bad result"));
+    }
+  };
+    
+  request.error = function(err) {
+    console.log("client: blob: could not save patch:", err);
+    return fn(new Error("Patch could not be saved - XHR error"));
+  };
+
+  $.ajax(request);
 };
 
 
-//sign an update request to be sent to the blob vault
-BlobObj.prototype.signRequest = function (config) {
-  config = extend(true, {}, config);
-
+//methods for signed requests
+BlobObj.getStringToSign = function (config, parser, date, mechanism) {
   // XXX This method doesn't handle signing GET requests correctly. The data
   //     field will be merged into the search string, not the request body.
-
-  // Parse URL
-  var parsed = $.parse(config.url);
 
   // Sort the properties of the JSON object into canonical form
   var canonicalData = JSON.stringify(copyObjectWithSortedKeys(config.data));
 
-  
   // Canonical request using Amazon's v4 signature format
   // See: http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
   var canonicalRequest = [
     config.method || 'GET',
-    parsed.pathname || '',
-    parsed.search || '',
+    parser.pathname || '',
+    parser.search || '',
     // XXX Headers signing not supported
     '',
     '',
     crypt.hashSha512(canonicalData).toLowerCase()
   ].join('\n');
-
-  var date = dateAsIso8601();
 
   // String to sign inspired by Amazon's v4 signature format
   // See: http://docs.aws.amazon.com/general/latest/gr/sigv4-create-string-to-sign.html
@@ -446,18 +451,54 @@ BlobObj.prototype.signRequest = function (config) {
   // We don't have a credential scope, so we skip it.
   //
   // But that modifies the format, so the format ID is RIPPLE1, instead of AWS4.
-  var stringToSign = [
-    'RIPPLE1-HMAC-SHA512',
+  return stringToSign = [
+    mechanism,
     date,
     crypt.hashSha512(canonicalRequest).toLowerCase()
   ].join('\n');
+}
 
-  var signature = crypt.signature(this.data.auth_secret, stringToSign);
 
+
+BlobObj.signRequestHmac = function (config, auth_secret, blob_id) {
+  config = extend(true, {}, config);
+
+  // Parse URL
+  var parsed = $.parse(config.url);
+
+  var date = dateAsIso8601();
+  var signatureType = 'RIPPLE1-HMAC-SHA512';
+
+  var stringToSign = BlobObj.getStringToSign(config, parsed, date, signatureType);
+  var signature = crypt.signature(auth_secret, stringToSign);
+  
   config.url += (parsed.search ? "&" : "?") +
-    'signature='+signature+
+    'signature='+crypt.base64ToBase64Url(signature)+
     '&signature_date='+date+
-    '&signature_blob_id='+this.id;
+    '&signature_blob_id='+blob_id+
+    '&signature_type='+signatureType
+
+  return config;
+}; 
+  
+  
+BlobObj.signRequestAsymmetric = function (config, secretKey, account, blob_id) {
+  config = extend(true, {}, config);
+
+  // Parse URL
+  var parsed = $.parse(config.url);
+  
+  var date          = dateAsIso8601();
+  var signatureType = 'RIPPLE1-ECDSA-SHA512';
+  var stringToSign  = BlobObj.getStringToSign(config, parsed, date, signatureType);
+  var signature     = crypt.signMessage(stringToSign, secretKey);
+ 
+  config.url += (parsed.search ? "&" : "?") +
+    'signature='+crypt.base64ToBase64Url(signature)+
+    '&signature_date='+date+
+    '&signature_blob_id='+blob_id+
+    '&signature_account='+account+
+    '&signature_type='+signatureType;
 
   return config;
 };
@@ -640,15 +681,17 @@ module.exports.create = function (options, fn)
 {
   
   var blob      = new BlobObj(options.url, options.id, options.crypt);
+  
   blob.revision = 0;
   blob.data     = {
-    auth_secret      : crypt.createSecret(8),
-    encrypted_secret : blob.encryptSecret(options.unlock, options.masterkey),
-    account_id       : crypt.getAddress(options.masterkey),
-    email            : options.email,
-    contacts         : [],
-    created          : (new Date()).toJSON()
+    auth_secret : crypt.createSecret(8),
+    account_id  : crypt.getAddress(options.masterkey),
+    email       : options.email,
+    contacts    : [],
+    created     : (new Date()).toJSON()
   };
+  
+  blob.encrypted_secret = blob.encryptSecret(options.unlock, options.masterkey);
 
   // Migration
   if (options.oldUserBlob) {
@@ -656,29 +699,35 @@ module.exports.create = function (options, fn)
   }
   
   //post to the blob vault to create
-  $.ajax({
-    type     : "POST",
+  var config = {
+    method   : "POST",
     url      : options.url + '/v1/user',
-    dataType : 'json',
     data : {
       blob_id     : options.id,
       username    : options.username,
       address     : blob.data.account_id,
-      signature   : "",
-      pubkey      : "",
       auth_secret : blob.data.auth_secret,
       data        : blob.encrypt(),
       email       : options.email,
-      hostlink    : options.activateLink
-    },
-    timeout : 8000,
-    success : function (data) {
-      console.log(data);
-      if (data.result === "success") return fn(null, blob, data);
-      else return fn(new Error("Could not create blob"));
-    },
-    error  : function(err) {
-      return fn(err);
-  }});
+      hostlink    : options.activateLink,
+      encrypted_blobdecrypt_key : blob.encryptBlobCrypt(options.masterkey, options.crypt),
+      encrypted_secret          : blob.encrypted_secret
+    }
+  };
+  
+  
+  var request = BlobObj.signRequestAsymmetric(config, options.masterkey, blob.data.account_id, options.id);
+  request.type = "POST";
+  request.success = function (data) {
+    if (data.result === "success") fn(null, blob, data);
+    else fn(new Error("Could not create blob"));
+  };
+  
+  request.error = function(err) {
+    console.log('err',err);
+    return fn(err);
+  };
+  
+  $.ajax(request);
 }
   

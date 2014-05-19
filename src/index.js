@@ -158,7 +158,6 @@ VaultClient.prototype.loginAndUnlock = function(username, password, fn) {
     var authInfo = self.infos[resp.blob.id]; 
     if (!authInfo) return fn(new Error("Unable to find authInfo"));
      
-    
     //derive unlock key
     crypt.derive(authInfo.pakdf, 'unlock', username.toLowerCase(), password, function(err, keys){
       if (err) return fn(err); 

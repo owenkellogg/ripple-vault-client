@@ -191,6 +191,8 @@ module.exports.signature = function (secret, data) {
   return sjcl.codec.hex.fromBits(hmac.mac(data));
 }
 
+module.exports.signMessage = ripple.Message.signMessage;
+
 module.exports.deriveRecoveryEncryptionKeyFromSecret = function(secret) {
   var seed = ripple.Seed.from_json(secret).to_bits();
   var hmac = new sjcl.misc.hmac(seed, sjcl.hash.sha512);
@@ -198,3 +200,25 @@ module.exports.deriveRecoveryEncryptionKeyFromSecret = function(secret) {
   key      = sjcl.bitArray.bitSlice(key, 0, 256);
   return sjcl.codec.hex.fromBits(key);
 }
+
+/**
+ * Convert base64 encoded data into base64url encoded data.
+ *
+ * @param {String} base64 Data
+ */
+module.exports.base64ToBase64Url = function (encodedData) {
+  return encodedData.replace(/\+/g, '-').replace(/\//g, '_').replace(/[=]+$/, '');
+};
+
+/**
+ * Convert base64url encoded data into base64 encoded data.
+ *
+ * @param {String} base64 Data
+ */
+module.exports.base64UrlToBase64 = function (encodedData) {
+  encodedData = encodedData.replace(/-/g, '+').replace(/_/g, '/');
+  while (encodedData.length % 4) {
+    encodedData += '=';
+  }
+  return encodedData;
+};

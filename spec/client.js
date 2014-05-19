@@ -7,14 +7,14 @@ var regexHash256 = /^[0-9a-f]{64}$/i;
 
 // XXX This is 100% bogus data
 var exampleData = {
-  id       : "9236cd8a9cc7f909633d7bb55effd0bd389d67d9ec1a6057bc47dfd813cbcc50",
-  crypt    : "d8c65bf04f29d2bcf2f183f9f70efe03c5cb47dda049c4809ec9cb7d6ac428fd",
+  id       : "57d6ed12d3b98ca91b61afac2fb30212f642daabefd9c7cda623f145f384830c",
+  crypt    : "1733480ceea2970e5f979c8d8e508d79e446b42d54f593e640814ea91deb53ef",
   unlock   : "452b02b80469a6a2ad692264c04d2a3794ea0ab11d8c902ef774190294db2ce2",
-  blobURL  : "http://curlpaste.com:8080",
+  blobURL  : "https://id.staging.ripple.com",
   username : "testUser",
-  password : "testPassword",
-  domain   : "curlpaste.com",
-  encrypted_secret : "ABVznT3ENq04CGtJWQWXaNIIPPTeNi8OctPUcBzU67tQXiiVKvfgjKfRF4+/zWTLdzxgJ002"
+  password : "pass word",
+  domain   : "staging.ripple.com",
+  encrypted_secret : "QUh5dnBqR0pTTVpjcjVoY0FhN1cxcEdTdW1XS1hLS2VzNlpQT2ZvQkFJWmg1UHRYS1RobUhKTkZUcWNyNlZEVlZYZDNhS1l0"
 };
 
 describe('VaultClient', function() {
