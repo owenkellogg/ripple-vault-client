@@ -1,4 +1,5 @@
-var $ = require('./ajax');
+var request = require('superagent');
+
 
 function RippleTxt(opts) {
   this.txts = {};
@@ -6,11 +7,11 @@ function RippleTxt(opts) {
 
 
 /*
- * get the ripple.txt file for the given domain
+ * Gets the ripple.txt file for the given domain
  * 
  */
 RippleTxt.prototype.get = function (domain, fn) {
-  var self    = this;
+  var self = this;
   
   if (self.txts[domain]) return fn(null, self.txts[domain]);
   
@@ -27,18 +28,14 @@ RippleTxt.prototype.get = function (domain, fn) {
   function next () {
     if (!urls.length) return fn(new Error("No ripple.txt found"));    
     var url = urls.pop();
-    $.ajax({
-      url      : url,
-      success  : function (data) {
-        
-        var sections = self.parse(data);
-        self.txts[domain] = sections;
-        fn(null, sections); 
-      },
-      error : function (err) {
-        return next();
-      }
-    });    
+
+    request.get(url, function(err, resp) {
+      if (err || !resp.text) return next();
+   
+      var sections      = self.parse(resp.text);
+      self.txts[domain] = sections;
+      fn(null, sections);            
+    });         
   } 
 }    
 
@@ -48,6 +45,7 @@ RippleTxt.prototype.get = function (domain, fn) {
  * 
  */    
 RippleTxt.prototype.parse = function (txt) {
+  
   txt = txt.replace('\r\n', '\n');
   txt = txt.replace('\r', '\n');
   txt = txt.split('\n');

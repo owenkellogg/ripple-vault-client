@@ -2,6 +2,8 @@ var assert      = require('assert');
 var VaultClient = require('../src');
 var Blob        = require('../src/blob').Blob;
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";  //must be set for self signed certs
+
 // XXX Should perhaps use ripple-lib's Hash256.is_valid()
 var regexHash256 = /^[0-9a-f]{64}$/i;
 

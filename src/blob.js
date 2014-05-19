@@ -1,6 +1,7 @@
-var $      = require('./ajax');
-var crypt  = require('./crypt');
-var extend = require("extend");
+var crypt = require('./crypt'),
+  request = require('superagent'),
+  parser  = require("url"),
+  extend  = require("extend");
 
 //Blob object class
 var BlobObj = function (url, id, key) {
@@ -42,42 +43,36 @@ for (var name in BlobObj.ops) {
  * 
  */
 BlobObj.prototype.init = function (fn) {
-  var self = this;
+  var self = this, url;
   if (self.url.indexOf("://") === -1) self.url = "http://" + url;
-
-  $.ajax({
-    url      : self.url + '/v1/blob/' + self.id,
-    dataType : 'json',
-    timeout  : 8000,
-    success  : function (data) {
-      if (data.result === "success") {
-        self.revision = data.revision;
-        
-        self.encrypted_secret = data.encrypted_secret;
-            
-        if (!self.decrypt(data.blob)) {
-          return fn(new Error("Error while decrypting blob"));
-        }
-        
-        //Apply patches
-        if (data.patches && data.patches.length) {
-          var successful = true;
-          data.patches.forEach(function (patch) {
-            successful = successful && self.applyEncryptedPatch(patch);
-          });
   
-          if (successful) self.consolidate();
-        }
+  url = self.url + '/v1/blob/' + self.id;
+  
+  request.get(url, function(err, resp){
 
-        fn(null, self);//return with newly decrypted blob
+    if (err || !resp.body || resp.body.result !== 'success')
+      return fn(new Error("Could not retrieve blob"));
+      
+      self.revision         = resp.body.revision;
+      self.encrypted_secret = resp.body.encrypted_secret;
+            
+      if (!self.decrypt(resp.body.blob)) {
+        return fn(new Error("Error while decrypting blob"));
+      }
         
-      } else {
-        fn(new Error("Could not retrieve blob"));
-      }      
-    },
-    error : function (err) {
-     fn(err);
-  }});    
+      //Apply patches
+      if (resp.body.patches && resp.body.patches.length) {
+        var successful = true;
+        resp.body.patches.forEach(function (patch) {
+          successful = successful && self.applyEncryptedPatch(patch);
+        });
+
+        if (successful) self.consolidate();
+      }
+
+      fn(null, self);//return with newly decrypted blob      
+    
+  }).timeout(8000);  
 } 
 
 
@@ -103,23 +98,19 @@ BlobObj.prototype.consolidate = function (fn) {
       data     : encrypted,
       revision : this.revision
     },
-    success : function(data) {
-      if (data.result === "success") {
-        return fn(null, data);
-      } else {
-        console.log("client: blob: could not consolidate:", data);
-        return fn(new Error("Failed to consolidate blob"));
-      }
-    },
-    error : function (err) {
-      console.log("client: blob: could not consolidate:", +data);
-
-      // XXX Add better error information to exception
-      return fn(new Error("Failed to consolidate blob - XHR error"));  
-    }  
   };
+  
+  var signed = BlobObj.signRequestHmac(config, this.data.auth_secret, this.id);
+  
+  request.post(signed.url)
+    .send(signed.data)
+    .end(function(err, resp) {
 
-  $.ajax(BlobObj.signRequestHmac(config, this.data.auth_secret, this.id));
+    // XXX Add better error information to exception
+    if (err) return fn(new Error("Failed to consolidate blob - XHR error"));   
+    else if (resp.body && resp.body.result === 'success') return fn(null, resp.body);  
+    else return fn(new Error("Failed to consolidate blob"));      
+  });
 };
   
   
@@ -388,7 +379,7 @@ BlobObj.prototype.postUpdate = function (op, pointer, params, fn) {
     throw new Error("Blob update op code out of bounds");
   }
 
-  console.log("client: blob: submitting update", BlobObj.opsReverseMap[op], pointer, params);
+  //console.log("client: blob: submitting update", BlobObj.opsReverseMap[op], pointer, params);
 
   params.unshift(pointer);
   params.unshift(op);
@@ -404,29 +395,23 @@ BlobObj.prototype.postUpdate = function (op, pointer, params, fn) {
   };
 
   
-  var request = BlobObj.signRequestHmac(config, this.data.auth_secret, this.id);
+  var signed = BlobObj.signRequestHmac(config, this.data.auth_secret, this.id);
 
-  request.success = function(data) {
-    if (data.result === "success") {
-      console.log("client: blob: saved patch as revision", data.revision);
-      return fn(null, data);
-    } else {
-      console.log("client: blob: could not save patch:", data);
-      return fn(new Error("Patch could not be saved - bad result"));
-    }
-  };
-    
-  request.error = function(err) {
-    console.log("client: blob: could not save patch:", err);
-    return fn(new Error("Patch could not be saved - XHR error"));
-  };
-
-  $.ajax(request);
+  request.post(signed.url)
+    .send(signed.data)
+    .end(function(err, resp) { 
+    if (err) 
+      return fn(new Error("Patch could not be saved - XHR error"));
+    else if (!resp.body || resp.body.result !== 'success')
+      return fn(new Error("Patch could not be saved - bad result")); 
+      
+    return fn(null, resp.body);  
+  });
 };
 
 
 //methods for signed requests
-BlobObj.getStringToSign = function (config, parser, date, mechanism) {
+BlobObj.getStringToSign = function (config, parsed, date, mechanism) {
   // XXX This method doesn't handle signing GET requests correctly. The data
   //     field will be merged into the search string, not the request body.
 
@@ -437,8 +422,8 @@ BlobObj.getStringToSign = function (config, parser, date, mechanism) {
   // See: http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
   var canonicalRequest = [
     config.method || 'GET',
-    parser.pathname || '',
-    parser.search || '',
+    parsed.pathname || '',
+    parsed.search || '',
     // XXX Headers signing not supported
     '',
     '',
@@ -464,7 +449,7 @@ BlobObj.signRequestHmac = function (config, auth_secret, blob_id) {
   config = extend(true, {}, config);
 
   // Parse URL
-  var parsed = $.parse(config.url);
+  var parsed = parser.parse(config.url);
 
   var date = dateAsIso8601();
   var signatureType = 'RIPPLE1-HMAC-SHA512';
@@ -486,7 +471,7 @@ BlobObj.signRequestAsymmetric = function (config, secretKey, account, blob_id) {
   config = extend(true, {}, config);
 
   // Parse URL
-  var parsed = $.parse(config.url);
+  var parsed = parser.parse(config.url);
   
   var date          = dateAsIso8601();
   var signatureType = 'RIPPLE1-ECDSA-SHA512';
@@ -624,18 +609,12 @@ module.exports.Blob = BlobObj
 module.exports.getRippleName = function (url, address, fn) {
   
   if (!crypt.isValidAddress(address)) return fn (new Error("Invalid ripple address"));
-  $.ajax({ 
-    url : url + '/v1/user/' + address,
-    dataType : 'json',
-    success : function (data) {
-      if (data.username) return fn(null, data.username);
-      else if (data.exists === false) return fn (new Error("No ripple name for this address"));
-      else return fn(new Error("Unable to determine if ripple name exists"));
-    },
-    error : function (err) {
-      return fn(new Error("Unable to access vault sever"));
-    }
-  });
+  request.get(url + '/v1/user/' + address, function(err, resp){
+    if (err) return fn(new Error("Unable to access vault sever"));
+    else if (resp.body && resp.body.username) return fn(null, resp.body.username);
+    else if (resp.body && resp.body.exists === false) return fn (new Error("No ripple name for this address"));
+    else return fn(new Error("Unable to determine if ripple name exists"));
+  }); 
 } 
 
 //retrive a blob with url, id and key  
@@ -648,19 +627,12 @@ module.exports.get = function (url, id, crypt, fn) {
 
 //verify email address
 module.exports.verify = function (url, username, token, fn) {
-
-  $.ajax({
-    method   : 'GET',
-    dataType : 'json',
-    url      : url + '/v1/user/' + username + '/verify/' + token,
-    success  : function(data) {
-      if (data.result === "success") return fn(null, data);
-      else return fn(new Error("Failed to verify the account"));
-    },
-    error: function(err) {
-      return fn(err);
-    }
-  });
+  url += '/v1/user/' + username + '/verify/' + token;
+  request.get(url, function(err, resp){
+    if (err) return fn(err);
+    else if (resp.body && resp.body.result === 'success') return fn(null, data);
+    else return fn(new Error("Failed to verify the account"));  
+  }); 
 }
 
 
@@ -716,18 +688,15 @@ module.exports.create = function (options, fn)
   };
   
   
-  var request = BlobObj.signRequestAsymmetric(config, options.masterkey, blob.data.account_id, options.id);
-  request.type = "POST";
-  request.success = function (data) {
-    if (data.result === "success") fn(null, blob, data);
-    else fn(new Error("Could not create blob"));
-  };
+  var signed = BlobObj.signRequestAsymmetric(config, options.masterkey, blob.data.account_id, options.id);
   
-  request.error = function(err) {
-    console.log('err',err);
-    return fn(err);
-  };
   
-  $.ajax(request);
+  request.post(signed)
+    .send(signed.data)
+    .end(function(err, resp) {
+      if (err) return fn(err);
+      else if (resp.body && resp.body.result === 'success') return fn(null, blob,resp.body);
+      else return fn(new Error("Could not create blob"));
+  }); 
 }
   

@@ -1,7 +1,7 @@
-var ripple = require('ripple-lib');
-var sjcl   = ripple.sjcl;
-var $      = require('./ajax');
-var extend = require("extend");
+var ripple  = require('ripple-lib');
+var sjcl    = ripple.sjcl;
+var request = require('superagent'); 
+var extend  = require("extend");
 
 var Base58Utils   = require('./base58');
 var RippleAddress = require('./types').RippleAddress;
@@ -96,36 +96,30 @@ module.exports.derive = function (opts, purpose, username, secret, fn) {
       iSignreq = iSecret.mulmod(iBlind, iModulus),
       signreq  = sjcl.codec.hex.fromBits(iSignreq.toBits());
   
-  $.ajax({
-    type : "POST",
-    url  : opts.url,
-    data : {
+  request.post(opts.url)
+    .send({
       info    : publicInfo,
       signreq : signreq
-    },
-    dataType : 'json',
-    success  : function(data) {
-
-      if (data.result === "success") {
-        var iSignres   = new sjcl.bn(String(data.signres));
-        var iRandomInv = iRandom.inverseMod(iModulus);
-        var iSigned    = iSignres.mulmod(iRandomInv, iModulus);
-        var key        = iSigned.toBits();
-        var result     = {};
-        
-        tokens.forEach(function (token) {
-          result[token] = keyHash(key, token);
-        });
-                            
-        fn (null, result);
-      } else {
-        // XXX Handle error
-      }        
-    },
-    error    : function() {
-      fn(new Error("Could not query PAKDF server "+opts.host));  
-    } 
-  });
+    }).end(function(err, resp) {
+    
+    if (err || !resp) return fn(new Error("Could not query PAKDF server "+opts.host));  
+    
+    var data = resp.body || resp.text ? JSON.parse(resp.text) : {};
+    
+    if (!data.result=='success') return fn(new Error("Could not query PAKDF server "+opts.host)); 
+    
+    var iSignres = new sjcl.bn(String(data.signres));
+      iRandomInv = iRandom.inverseMod(iModulus),
+      iSigned    = iSignres.mulmod(iRandomInv, iModulus),
+      key        = iSigned.toBits(),
+      result     = {};
+    
+    tokens.forEach(function (token) {
+      result[token] = keyHash(key, token);
+    });
+                        
+    fn (null, result);     
+  }); 
 }
 
 
