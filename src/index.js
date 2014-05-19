@@ -82,8 +82,8 @@ VaultClient.prototype.login = function(username, password, fn) {
         
         fn (null, {
           blob     : blob,
-          keys     : keys,
-          username : authInfo.username  
+          username : authInfo.username,  
+          verified : authInfo.emailVerified
         });
       });
     });
@@ -148,31 +148,26 @@ VaultClient.prototype.loginAndUnlock = function(username, password, fn) {
   this.login(username, password, function(err, resp){
     if (err) return fn(err);
     
-    if (!resp.blob || 
-        !resp.blob.data ||
-        !resp.blob.data.encrypted_secret) 
+    if (!resp.blob || !resp.blob.encrypted_secret) 
       return fn(new Error("Unable to retrieve blob and secret."));
     
-    if (!resp.keys) return fn(new Error("Unable to retrieve keys."));
+    if (!resp.blob.id || !resp.blob.key) 
+      return fn(new Error("Unable to retrieve keys."));
      
     //get authInfo via id - would have been saved from login
-    var authInfo = self.infos[resp.keys.id]; 
+    var authInfo = self.infos[resp.blob.id]; 
     if (!authInfo) return fn(new Error("Unable to find authInfo"));
      
-    
     //derive unlock key
     crypt.derive(authInfo.pakdf, 'unlock', username.toLowerCase(), password, function(err, keys){
       if (err) return fn(err); 
       
       fn(null, {
-        blob : resp.blob,
-        keys : {
-          id     : resp.keys.id,
-          crypt  : resp.keys.crypt,
-          unlock : keys.unlock
-        },
-        secret   : crypt.decrypt(keys.unlock, resp.blob.data.encrypted_secret),
-        username : authInfo.username
+        blob     : resp.blob,
+        unlock   : keys.unlock,
+        secret   : crypt.decrypt(keys.unlock, resp.blob.encrypted_secret),
+        username : authInfo.username,
+        verified : authInfo.emailVerified
       });
     });     
   });
