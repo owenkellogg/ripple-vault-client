@@ -1,15 +1,10 @@
-/**
- * KEY DERIVATION FUNCTION
- *
- * This service takes care of the key derivation, i.e. converting low-entropy
- * secret into higher entropy secret via either computationally expensive
- * processes or peer-assisted key derivation (PAKDF).
- */
-
 var ripple  = require('ripple-lib');
 var sjcl    = ripple.sjcl;
-var $       = require('./ajax');
+var request = require('superagent'); 
+var extend  = require("extend");
 
+var Base58Utils   = require('./base58');
+var RippleAddress = require('./types').RippleAddress;
 
 var cryptConfig = {
   cipher : "aes",
@@ -18,13 +13,6 @@ var cryptConfig = {
   ks     : 256,  // key size
   iter   : 1000  // iterations (key derivation)
 };
-
-
-function extend(obj, obj2) {
-  var newObject = JSON.parse(JSON.stringify(obj));
-  if (obj2) for (var key in obj2) newObject[key] = obj2[key];
-  return newObject;
-}  
 
 
 // Full domain hash based on SHA512
@@ -61,8 +49,16 @@ function keyHash(key, token) {
 
 /****** exposed functions ******/
 
+
+/**
+ * KEY DERIVATION FUNCTION
+ *
+ * This service takes care of the key derivation, i.e. converting low-entropy
+ * secret into higher entropy secret via either computationally expensive
+ * processes or peer-assisted key derivation (PAKDF).
+ */
 module.exports.derive = function (opts, purpose, username, secret, fn) {
-  
+
   var tokens;
   if (purpose=='login') tokens = ['id', 'crypt'];
   else                  tokens = ['unlock'];
@@ -100,36 +96,30 @@ module.exports.derive = function (opts, purpose, username, secret, fn) {
       iSignreq = iSecret.mulmod(iBlind, iModulus),
       signreq  = sjcl.codec.hex.fromBits(iSignreq.toBits());
   
-  $.ajax({
-    type : "POST",
-    url  : opts.url,
-    data : {
+  request.post(opts.url)
+    .send({
       info    : publicInfo,
       signreq : signreq
-    },
-    dataType : 'json',
-    success  : function(data) {
-
-      if (data.result === "success") {
-        var iSignres   = new sjcl.bn(String(data.signres));
-        var iRandomInv = iRandom.inverseMod(iModulus);
-        var iSigned    = iSignres.mulmod(iRandomInv, iModulus);
-        var key        = iSigned.toBits();
-        var result     = {};
-        
-        tokens.forEach(function (token) {
-          result[token] = keyHash(key, token);
-        });
-                            
-        fn (null, result);
-      } else {
-        // XXX Handle error
-      }        
-    },
-    error    : function() {
-      fn(new Error("Could not query PAKDF server "+opts.host));  
-    } 
-  });
+    }).end(function(err, resp) {
+    
+    if (err || !resp) return fn(new Error("Could not query PAKDF server "+opts.host));  
+    
+    var data = resp.body || resp.text ? JSON.parse(resp.text) : {};
+    
+    if (!data.result=='success') return fn(new Error("Could not query PAKDF server "+opts.host)); 
+    
+    var iSignres = new sjcl.bn(String(data.signres));
+      iRandomInv = iRandom.inverseMod(iModulus),
+      iSigned    = iSignres.mulmod(iRandomInv, iModulus),
+      key        = iSigned.toBits(),
+      result     = {};
+    
+    tokens.forEach(function (token) {
+      result[token] = keyHash(key, token);
+    });
+                        
+    fn (null, result);     
+  }); 
 }
 
 
@@ -137,7 +127,7 @@ module.exports.encrypt = function(key, data)
 {
   key = sjcl.codec.hex.toBits(key);
 
-  var opts = extend(cryptConfig);
+  var opts = extend(true, {}, cryptConfig);
 
   var encryptedObj = JSON.parse(sjcl.encrypt(key, data, opts));
   var version = [sjcl.bitArray.partial(8, 0)];
@@ -162,10 +152,67 @@ module.exports.decrypt = function(key, data)
     throw new Error("Unsupported encryption version: "+version);
   }
 
-  var encrypted = extend(cryptConfig, {
+  var encrypted = extend(true, {}, cryptConfig, {
     iv: sjcl.codec.base64.fromBits(sjcl.bitArray.bitSlice(encryptedBits, 8, 8+128)),
     ct: sjcl.codec.base64.fromBits(sjcl.bitArray.bitSlice(encryptedBits, 8+128))
   });
 
   return sjcl.decrypt(key, JSON.stringify(encrypted));
 } 
+
+module.exports.isValidAddress = function (address) {
+  return ripple.UInt160.is_valid(address);
+}
+
+module.exports.createSecret = function (words) {
+  return sjcl.codec.hex.fromBits(sjcl.random.randomWords(words));
+}
+
+module.exports.createMaster = function () {
+  return Base58Utils.encode_base_check(33, sjcl.codec.bytes.fromBits(sjcl.random.randomWords(4)));
+}
+
+module.exports.getAddress = function (masterkey) {
+  return new RippleAddress(masterkey).getAddress();
+}
+
+module.exports.hashSha512 = function (data) {
+  return sjcl.codec.hex.fromBits(sjcl.hash.sha512.hash(data)); 
+}
+
+module.exports.signature = function (secret, data) {
+  var hmac = new sjcl.misc.hmac(sjcl.codec.hex.toBits(secret), sjcl.hash.sha512);
+  return sjcl.codec.hex.fromBits(hmac.mac(data));
+}
+
+module.exports.signMessage = ripple.Message.signMessage;
+
+module.exports.deriveRecoveryEncryptionKeyFromSecret = function(secret) {
+  var seed = ripple.Seed.from_json(secret).to_bits();
+  var hmac = new sjcl.misc.hmac(seed, sjcl.hash.sha512);
+  var key  = hmac.mac("ripple/hmac/recovery_encryption_key/v1");
+  key      = sjcl.bitArray.bitSlice(key, 0, 256);
+  return sjcl.codec.hex.fromBits(key);
+}
+
+/**
+ * Convert base64 encoded data into base64url encoded data.
+ *
+ * @param {String} base64 Data
+ */
+module.exports.base64ToBase64Url = function (encodedData) {
+  return encodedData.replace(/\+/g, '-').replace(/\//g, '_').replace(/[=]+$/, '');
+};
+
+/**
+ * Convert base64url encoded data into base64 encoded data.
+ *
+ * @param {String} base64 Data
+ */
+module.exports.base64UrlToBase64 = function (encodedData) {
+  encodedData = encodedData.replace(/-/g, '+').replace(/_/g, '/');
+  while (encodedData.length % 4) {
+    encodedData += '=';
+  }
+  return encodedData;
+};
