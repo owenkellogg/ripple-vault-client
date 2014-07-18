@@ -253,8 +253,9 @@ VaultClient.prototype.register = function (options, fn) {
           'username'     : username,
           'email'        : options.email,
           'masterkey'    : options.masterkey || crypt.createMaster(),
-          'activateLink' : options.activateLink,
-          'oldUserBlob'  : options.oldUserBlob 
+          'activateLink' : options.activateLink || self.domain + '/#/register/activate',
+          'oldUserBlob'  : options.oldUserBlob,
+          'domain'       : self.domain
         }
         
         blobClient.create(params, function(err, blob){
