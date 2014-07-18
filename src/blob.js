@@ -691,7 +691,7 @@ module.exports.create = function (options, fn)
   var signed = BlobObj.signRequestAsymmetric(config, options.masterkey, blob.data.account_id, options.id);
   
   
-  request.post(signed)
+  request.post(signed.url)
     .send(signed.data)
     .end(function(err, resp) {
       if (err) return fn(err);
