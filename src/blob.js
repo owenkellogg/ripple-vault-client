@@ -683,7 +683,8 @@ module.exports.create = function (options, fn)
       email       : options.email,
       hostlink    : options.activateLink,
       encrypted_blobdecrypt_key : blob.encryptBlobCrypt(options.masterkey, options.crypt),
-      encrypted_secret          : blob.encrypted_secret
+      encrypted_secret          : blob.encrypted_secret,
+      domain      : optiones.domain
     }
   };
   
